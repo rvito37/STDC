@@ -87,18 +87,22 @@ function Col-Letter {
 Write-Host "Reading C_PROC.DBF..."
 $cproc = Read-AllDbfRecords (Join-Path $basePath 'C_PROC.DBF')
 $procLookup = @{}
+$procNameLookup = @{}
 if ($cproc -and $cproc.Records.Count -gt 0) {
     $procIdKey = Find-Key $cproc.Records[0] 'PROC_ID'
     $pcprocnoKey = Find-Key $cproc.Records[0] 'PCPROCNO'
-    Write-Host "  PROC_ID key: $procIdKey  PCPROCNO key: $pcprocnoKey"
+    $procNmeKey = Find-Key $cproc.Records[0] 'PROC_NME'
+    Write-Host "  PROC_ID key: $procIdKey  PCPROCNO key: $pcprocnoKey  PROC_NME key: $procNmeKey"
     foreach ($rec in $cproc.Records) {
         $procId = $rec.$procIdKey
         $pcno = $rec.$pcprocnoKey
-        if ($procId -and $pcno) {
-            $procLookup[$procId] = $pcno
+        $pnme = if ($procNmeKey) { $rec.$procNmeKey } else { '' }
+        if ($procId) {
+            if ($pcno) { $procLookup[$procId] = $pcno }
+            if ($pnme) { $procNameLookup[$procId] = $pnme }
         }
     }
-    Write-Host "  Lookup entries: $($procLookup.Count)"
+    Write-Host "  Lookup entries: $($procLookup.Count) PCPROCNO, $($procNameLookup.Count) PROC_NME"
 }
 
 # ============================================================
@@ -191,15 +195,20 @@ foreach ($entry in $plineMap.GetEnumerator()) {
     # Find PROC_ID key in records for lookup
     $recProcIdKey = Find-Key $filtered[0] 'PROC_ID'
 
-    # Add PCPROCNO to each record and sort by it
+    # Add PCPROCNO and PROC_NME to each record and sort by PCPROCNO
     $enriched = @()
     foreach ($rec in $filtered) {
         $procId = if ($recProcIdKey) { $rec.$recProcIdKey } else { '' }
         $pcno = ''
+        $pnme = ''
         if ($procId -and $procLookup.ContainsKey($procId)) {
             $pcno = $procLookup[$procId]
         }
+        if ($procId -and $procNameLookup.ContainsKey($procId)) {
+            $pnme = $procNameLookup[$procId]
+        }
         $rec | Add-Member -NotePropertyName 'PCPROCNO' -NotePropertyValue $pcno -Force
+        $rec | Add-Member -NotePropertyName 'PROC_NME' -NotePropertyValue $pnme -Force
         $enriched += $rec
     }
 
@@ -210,9 +219,10 @@ foreach ($entry in $plineMap.GetEnumerator()) {
         if ([int]::TryParse($v, [ref]$num)) { $num } else { 99999 }
     }
 
-    # Add PCPROCNO as first field in the list
+    # Add PCPROCNO and PROC_NME as first fields in the list
     $pcprocField = [PSCustomObject]@{Name='PCPROCNO'; Type='C'; Length=4; Decimal=0}
-    $finalFields = @($pcprocField) + $filteredFields
+    $procNmeField = [PSCustomObject]@{Name='PROC_NME'; Type='C'; Length=20; Decimal=0}
+    $finalFields = @($pcprocField, $procNmeField) + $filteredFields
 
     $allSheets[$pline] = @{Fields=$finalFields; Records=$sorted; DESC=$desc; WFILE=$wfile}
 }

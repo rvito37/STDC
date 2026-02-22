@@ -44,6 +44,7 @@ C_WIP.DBF                    Cxx.DBF                     C_PROC.DBF
 | Колонка | Описание |
 |---------|----------|
 | PCPROCNO | Код процесса из C_PROC (для сортировки и идентификации) |
+| PROC_NME | Название процесса из C_PROC (напр. Wafer Ordering, Termination) |
 | PROC_ID | ID процесса в таблице затрат |
 | STDC_DLAB | Стандартная стоимость прямого труда (Direct Labor) |
 | STDC_OVHD | Накладные расходы (Overhead) |
